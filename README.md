@@ -4,11 +4,10 @@ A local, offline-first CLI agent to track activities and task progress.
 
 ## Features
 
-- **Activities**: Timestamped records of things you've done
-- **Tasks**: Long-running actions with progress tracking
+- **Unified Entries**: Track both completed activities and active tasks
 - **Progress Logs**: Dated updates with completion percentages
-- **Time-based Queries**: Filter activities by last week/month/quarter
-- **Task Progress Timelines**: View progress updates over time
+- **Time-based Queries**: Filter entries by last week/month/quarter
+- **Progress Timelines**: View progress updates over time
 - **Fully Local**: All data stored locally in `~/.recap/`
 - **Offline-first**: No internet connection required
 - **Clean CLI**: Simple, intuitive command-line interface
@@ -29,52 +28,40 @@ pip install -e .
 
 ## Usage
 
-### Activities
+### Logging Activities
 
-Track timestamped records of things you've done:
+Log things you've already done:
 
 ```bash
-# Add an activity
-recap activity add "Finished project documentation" --tags work --tags documentation
-
-# List all activities
-recap activity list
-
-# List activities from the last week
-recap activity list --filter last-week
-
-# List activities with specific tags
-recap activity list --tags work
-
-# Limit results
-recap activity list --limit 10
+# Log a completed activity
+recap log "Finished project documentation" --tags work --tags documentation
 ```
 
-### Tasks
+### Managing Tasks
 
-Manage long-running tasks with progress tracking:
+Create and manage active tasks:
 
 ```bash
-# Create a new task
-recap task create "Write API documentation" --description "Document all REST endpoints" --tags work
+# Create a new active task
+recap todo "Write API documentation" --description "Document all REST endpoints" --tags work
 
-# List all tasks
-recap task list
+# List all entries (tasks and activities)
+recap list
 
 # List only active tasks
-recap task list --status active
+recap list --status active
 
 # Add progress update (0-100%)
-recap task progress <task-id> 25 --note "Completed authentication endpoints"
+recap progress <entry-id> 25 --note "Completed authentication endpoints"
 
-# Show task details and progress timeline
-recap task show <task-id>
+# Show entry details and progress timeline
+recap show <entry-id>
 
-# Mark task as complete
-recap task complete <task-id>
+# Mark entry as complete
+recap complete <entry-id>
 
-# Cancel a task
-recap task cancel <task-id>
+# Cancel an entry
+recap cancel <entry-id>
 ```
 
 ### Time Filters
@@ -91,14 +78,13 @@ Supported time filter options:
 
 The project follows a clean, extensible architecture:
 
-- **Models** (`models.py`): Data structures for Activities, Tasks, and Progress Logs
+- **Models** (`models.py`): Data structures for unified Entries and Progress Logs
 - **Storage** (`storage.py`): Local JSON-based persistence layer
 - **Utils** (`utils.py`): Time-based query utilities
 - **CLI** (`cli.py`): Command-line interface using Click
 
 All data is stored locally in JSON files at `~/.recap/`:
-- `activities.json`: All activity records
-- `tasks.json`: All task records with progress logs
+- `entries.json`: All activity and task records
 
 ## Examples
 
@@ -106,28 +92,28 @@ All data is stored locally in JSON files at `~/.recap/`:
 
 ```bash
 # Morning: Log what you did yesterday
-recap activity add "Fixed bug in user authentication" --tags work --tags bugfix
-recap activity add "Team standup meeting" --tags meeting
+recap log "Fixed bug in user authentication" --tags work --tags bugfix
+recap log "Team standup meeting" --tags meeting
 
 # During the day: Update task progress
-recap task progress abc-123 50 --note "Halfway through implementation"
+recap progress abc-123 50 --note "Halfway through implementation"
 
-# End of day: Review your activities
-recap activity list --filter this-week
+# End of day: Review your entries
+recap list --filter this-week
 
-# Weekly review: Check task progress
-recap task list --status active
-recap task show abc-123
+# Weekly review: Check active tasks
+recap list --status active
+recap show abc-123
 ```
 
 ### Monthly Recap
 
 ```bash
-# See all activities from last month
-recap activity list --filter last-month
+# See all entries from last month
+recap list --filter last-month
 
-# Review completed tasks
-recap task list --status completed
+# Review completed entries
+recap list --status done
 ```
 
 ## Development

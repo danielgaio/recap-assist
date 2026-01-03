@@ -21,35 +21,49 @@ def main():
     pass
 
 
-# Activity commands
-
-@main.group()
-def activity():
-    """Manage activities - timestamped records of things done."""
-    pass
-
-
-@activity.command(name="add")
-@click.argument("description")
-@click.option("--tags", "-t", multiple=True, help="Tags for the activity")
-def activity_add(description: str, tags: tuple):
-    """Add a new activity."""
+@main.command(name="log")
+@click.argument("title")
+@click.option("--description", "-d", help="Optional description")
+@click.option("--tags", "-t", multiple=True, help="Tags for the entry")
+def log(title: str, description: Optional[str], tags: tuple):
+    """Log a completed activity."""
     storage = Storage()
-    activity = storage.add_activity(
+    entry = storage.add_entry(
+        title=title,
         description=description,
+        status="done",
         tags=list(tags)
     )
-    click.echo(f"✓ Activity added: {activity.description}")
-    click.echo(f"  ID: {activity.id}")
-    click.echo(f"  Time: {format_datetime(datetime.fromisoformat(activity.timestamp))}")
+    click.echo(f"✓ Logged: {entry.title}")
+    click.echo(f"  ID: {entry.id}")
+    click.echo(f"  Time: {format_datetime(datetime.fromisoformat(entry.timestamp))}")
 
 
-@activity.command(name="list")
-@click.option("--filter", "-f", help="Time filter (last-week, last-month, last-quarter)")
+@main.command(name="todo")
+@click.argument("title")
+@click.option("--description", "-d", help="Optional description")
+@click.option("--tags", "-t", multiple=True, help="Tags for the entry")
+def todo(title: str, description: Optional[str], tags: tuple):
+    """Create a new active task."""
+    storage = Storage()
+    entry = storage.add_entry(
+        title=title,
+        description=description,
+        status="active",
+        tags=list(tags)
+    )
+    click.echo(f"✓ Added to TODO: {entry.title}")
+    click.echo(f"  ID: {entry.id}")
+    click.echo(f"  Status: {entry.status}")
+
+
+@main.command(name="list")
+@click.option("--filter", "-f", help="Time filter (last-week, last-month, etc.)")
+@click.option("--status", "-s", type=click.Choice(["active", "done", "cancelled"]), help="Filter by status")
 @click.option("--tags", "-t", multiple=True, help="Filter by tags")
 @click.option("--limit", "-n", type=int, help="Limit number of results")
-def activity_list(filter: Optional[str], tags: tuple, limit: Optional[int]):
-    """List activities with optional filtering."""
+def list_entries(filter: Optional[str], status: Optional[str], tags: tuple, limit: Optional[int]):
+    """List entries with optional filtering."""
     storage = Storage()
     
     # Parse time filter
@@ -62,173 +76,118 @@ def activity_list(filter: Optional[str], tags: tuple, limit: Optional[int]):
             click.echo(f"Error: {e}", err=True)
             return
     
-    # Get activities
-    activities = storage.get_activities(
+    # Get entries
+    entries = storage.get_entries(
         start_date=start_date,
         end_date=end_date,
-        tags=list(tags) if tags else None
-    )
-    
-    # Sort by timestamp (newest first)
-    activities.sort(key=lambda a: a.timestamp, reverse=True)
-    
-    # Apply limit
-    if limit:
-        activities = activities[:limit]
-    
-    if not activities:
-        click.echo("No activities found.")
-        return
-    
-    # Display
-    click.echo(f"\n📋 Found {len(activities)} activities:\n")
-    for act in activities:
-        click.echo(f"• {act.description}")
-        click.echo(f"  {format_datetime(datetime.fromisoformat(act.timestamp))}")
-        if act.tags:
-            click.echo(f"  Tags: {', '.join(act.tags)}")
-        click.echo()
-
-
-# Task commands
-
-@main.group()
-def task():
-    """Manage tasks - long-running actions with progress tracking."""
-    pass
-
-
-@task.command(name="create")
-@click.argument("title")
-@click.option("--description", "-d", help="Task description")
-@click.option("--tags", "-t", multiple=True, help="Tags for the task")
-def task_create(title: str, description: Optional[str], tags: tuple):
-    """Create a new task."""
-    storage = Storage()
-    task = storage.create_task(
-        title=title,
-        description=description,
-        tags=list(tags)
-    )
-    click.echo(f"✓ Task created: {task.title}")
-    click.echo(f"  ID: {task.id}")
-    click.echo(f"  Status: {task.status}")
-
-
-@task.command(name="list")
-@click.option("--status", "-s", type=click.Choice(["active", "completed", "cancelled"]), 
-              help="Filter by status")
-@click.option("--tags", "-t", multiple=True, help="Filter by tags")
-def task_list(status: Optional[str], tags: tuple):
-    """List tasks with optional filtering."""
-    storage = Storage()
-    
-    tasks = storage.get_tasks(
         status=status,
         tags=list(tags) if tags else None
     )
     
-    if not tasks:
-        click.echo("No tasks found.")
+    # Sort by timestamp (newest first)
+    entries.sort(key=lambda e: e.timestamp, reverse=True)
+    
+    # Apply limit
+    if limit:
+        entries = entries[:limit]
+    
+    if not entries:
+        click.echo("No entries found.")
         return
     
-    # Sort by created date (newest first)
-    tasks.sort(key=lambda t: t.created_at, reverse=True)
-    
-    click.echo(f"\n📝 Found {len(tasks)} tasks:\n")
-    for t in tasks:
-        status_icon = "✓" if t.status == "completed" else "⏳" if t.status == "active" else "✗"
-        click.echo(f"{status_icon} {t.title} [{t.current_progress:.0f}%]")
-        click.echo(f"  ID: {t.id}")
-        click.echo(f"  Status: {t.status}")
-        click.echo(f"  Created: {format_date(datetime.fromisoformat(t.created_at))}")
-        if t.description:
-            click.echo(f"  Description: {t.description}")
-        if t.tags:
-            click.echo(f"  Tags: {', '.join(t.tags)}")
+    # Display
+    click.echo(f"\n📋 Found {len(entries)} entries:\n")
+    for entry in entries:
+        status_icon = "✓" if entry.status == "done" else "⏳" if entry.status == "active" else "✗"
+        click.echo(f"{status_icon} {entry.title} [{entry.current_progress:.0f}%]")
+        click.echo(f"  ID: {entry.id}")
+        click.echo(f"  Status: {entry.status}")
+        click.echo(f"  Time: {format_datetime(datetime.fromisoformat(entry.timestamp))}")
+        if entry.tags:
+            click.echo(f"  Tags: {', '.join(entry.tags)}")
         click.echo()
 
 
-@task.command(name="progress")
-@click.argument("task_id")
+@main.command(name="progress")
+@click.argument("entry_id")
 @click.argument("percentage", type=float)
 @click.option("--note", "-n", help="Optional note for this progress update")
-def task_progress(task_id: str, percentage: float, note: Optional[str]):
-    """Add progress update to a task."""
+def progress(entry_id: str, percentage: float, note: Optional[str]):
+    """Add progress update to an entry."""
     if percentage < 0 or percentage > 100:
         click.echo("Error: Percentage must be between 0 and 100", err=True)
         return
     
     storage = Storage()
-    task = storage.add_task_progress(task_id, percentage, note)
+    entry = storage.add_progress(entry_id, percentage, note)
     
-    if not task:
-        click.echo(f"Error: Task not found: {task_id}", err=True)
+    if not entry:
+        click.echo(f"Error: Entry not found: {entry_id}", err=True)
         return
     
-    click.echo(f"✓ Progress updated for: {task.title}")
+    click.echo(f"✓ Progress updated for: {entry.title}")
     click.echo(f"  Progress: {percentage:.0f}%")
     if note:
         click.echo(f"  Note: {note}")
 
 
-@task.command(name="complete")
-@click.argument("task_id")
-def task_complete(task_id: str):
-    """Mark a task as completed."""
+@main.command(name="complete")
+@click.argument("entry_id")
+def complete(entry_id: str):
+    """Mark an entry as completed."""
     storage = Storage()
-    task = storage.complete_task(task_id)
+    entry = storage.complete_entry(entry_id)
     
-    if not task:
-        click.echo(f"Error: Task not found: {task_id}", err=True)
+    if not entry:
+        click.echo(f"Error: Entry not found: {entry_id}", err=True)
         return
     
-    click.echo(f"✓ Task completed: {task.title}")
+    click.echo(f"✓ Completed: {entry.title}")
 
 
-@task.command(name="cancel")
-@click.argument("task_id")
-def task_cancel(task_id: str):
-    """Mark a task as cancelled."""
+@main.command(name="cancel")
+@click.argument("entry_id")
+def cancel(entry_id: str):
+    """Mark an entry as cancelled."""
     storage = Storage()
-    task = storage.cancel_task(task_id)
+    entry = storage.cancel_entry(entry_id)
     
-    if not task:
-        click.echo(f"Error: Task not found: {task_id}", err=True)
+    if not entry:
+        click.echo(f"Error: Entry not found: {entry_id}", err=True)
         return
     
-    click.echo(f"✗ Task cancelled: {task.title}")
+    click.echo(f"✗ Cancelled: {entry.title}")
 
 
-@task.command(name="show")
-@click.argument("task_id")
-def task_show(task_id: str):
-    """Show detailed information about a task including progress timeline."""
+@main.command(name="show")
+@click.argument("entry_id")
+def show(entry_id: str):
+    """Show detailed information about an entry."""
     storage = Storage()
-    task = storage.get_task(task_id)
+    entry = storage.get_entry(entry_id)
     
-    if not task:
-        click.echo(f"Error: Task not found: {task_id}", err=True)
+    if not entry:
+        click.echo(f"Error: Entry not found: {entry_id}", err=True)
         return
     
-    # Display task details
-    status_icon = "✓" if task.status == "completed" else "⏳" if task.status == "active" else "✗"
-    click.echo(f"\n{status_icon} {task.title}")
-    click.echo(f"\nID: {task.id}")
-    click.echo(f"Status: {task.status}")
-    click.echo(f"Created: {format_datetime(datetime.fromisoformat(task.created_at))}")
-    click.echo(f"Current Progress: {task.current_progress:.0f}%")
+    # Display details
+    status_icon = "✓" if entry.status == "done" else "⏳" if entry.status == "active" else "✗"
+    click.echo(f"\n{status_icon} {entry.title}")
+    click.echo(f"\nID: {entry.id}")
+    click.echo(f"Status: {entry.status}")
+    click.echo(f"Created: {format_datetime(datetime.fromisoformat(entry.timestamp))}")
+    click.echo(f"Current Progress: {entry.current_progress:.0f}%")
     
-    if task.description:
-        click.echo(f"\nDescription: {task.description}")
+    if entry.description:
+        click.echo(f"\nDescription: {entry.description}")
     
-    if task.tags:
-        click.echo(f"Tags: {', '.join(task.tags)}")
+    if entry.tags:
+        click.echo(f"Tags: {', '.join(entry.tags)}")
     
     # Display progress timeline
-    if task.progress_logs:
-        click.echo(f"\n📊 Progress Timeline ({len(task.progress_logs)} updates):\n")
-        for log in task.progress_logs:
+    if entry.progress_logs:
+        click.echo(f"\n📊 Progress Timeline ({len(entry.progress_logs)} updates):\n")
+        for log in entry.progress_logs:
             click.echo(f"  {format_datetime(datetime.fromisoformat(log.timestamp))} - {log.percentage:.0f}%")
             if log.note:
                 click.echo(f"    Note: {log.note}")

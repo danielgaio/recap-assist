@@ -2,41 +2,45 @@
 
 import pytest
 from datetime import datetime
-from recap_assist.models import Activity, Task, ProgressLog
+from recap_assist.models import Entry, ProgressLog
 
 
-def test_activity_creation():
-    """Test creating an activity."""
-    activity = Activity(
+def test_entry_creation():
+    """Test creating an entry."""
+    entry = Entry(
         id="test-1",
-        description="Test activity",
+        title="Test entry",
+        description="Test description",
         timestamp=datetime.utcnow().isoformat(),
+        status="active",
         tags=["work", "test"],
         metadata={"key": "value"}
     )
     
-    assert activity.id == "test-1"
-    assert activity.description == "Test activity"
-    assert len(activity.tags) == 2
-    assert activity.metadata["key"] == "value"
+    assert entry.id == "test-1"
+    assert entry.title == "Test entry"
+    assert entry.description == "Test description"
+    assert entry.status == "active"
+    assert len(entry.tags) == 2
+    assert entry.metadata["key"] == "value"
 
 
-def test_activity_serialization():
-    """Test activity to_dict and from_dict."""
-    activity = Activity(
+def test_entry_serialization():
+    """Test entry to_dict and from_dict."""
+    entry = Entry(
         id="test-1",
-        description="Test activity",
+        title="Test entry",
         timestamp=datetime.utcnow().isoformat(),
         tags=["test"]
     )
     
     # Convert to dict and back
-    activity_dict = activity.to_dict()
-    restored = Activity.from_dict(activity_dict)
+    entry_dict = entry.to_dict()
+    restored = Entry.from_dict(entry_dict)
     
-    assert restored.id == activity.id
-    assert restored.description == activity.description
-    assert restored.tags == activity.tags
+    assert restored.id == entry.id
+    assert restored.title == entry.title
+    assert restored.tags == entry.tags
 
 
 def test_progress_log_creation():
@@ -51,51 +55,39 @@ def test_progress_log_creation():
     assert log.note == "Halfway done"
 
 
-def test_task_creation():
-    """Test creating a task."""
-    task = Task(
+def test_entry_add_progress():
+    """Test adding progress to an entry."""
+    entry = Entry(
         id="task-1",
         title="Test task",
-        description="A test task",
-        tags=["work"]
+        timestamp=datetime.utcnow().isoformat(),
+        status="active"
     )
     
-    assert task.id == "task-1"
-    assert task.title == "Test task"
-    assert task.status == "active"
-    assert task.current_progress == 0.0
-
-
-def test_task_add_progress():
-    """Test adding progress to a task."""
-    task = Task(
-        id="task-1",
-        title="Test task"
-    )
+    entry.add_progress(25.0, "First update")
+    entry.add_progress(75.0, "Second update")
     
-    task.add_progress(25.0, "First update")
-    task.add_progress(75.0, "Second update")
-    
-    assert len(task.progress_logs) == 2
-    assert task.current_progress == 75.0
-    assert task.progress_logs[0].percentage == 25.0
-    assert task.progress_logs[1].percentage == 75.0
+    assert len(entry.progress_logs) == 2
+    assert entry.current_progress == 75.0
+    assert entry.progress_logs[0].percentage == 25.0
+    assert entry.progress_logs[1].percentage == 75.0
 
 
-def test_task_serialization():
-    """Test task to_dict and from_dict with progress logs."""
-    task = Task(
+def test_entry_serialization_with_progress():
+    """Test entry to_dict and from_dict with progress logs."""
+    entry = Entry(
         id="task-1",
         title="Test task",
+        timestamp=datetime.utcnow().isoformat(),
         description="Test description"
     )
-    task.add_progress(50.0, "Halfway")
+    entry.add_progress(50.0, "Halfway")
     
     # Convert to dict and back
-    task_dict = task.to_dict()
-    restored = Task.from_dict(task_dict)
+    entry_dict = entry.to_dict()
+    restored = Entry.from_dict(entry_dict)
     
-    assert restored.id == task.id
-    assert restored.title == task.title
+    assert restored.id == entry.id
+    assert restored.title == entry.title
     assert len(restored.progress_logs) == 1
     assert restored.current_progress == 50.0

@@ -19,118 +19,107 @@ def temp_storage():
 
 def test_storage_initialization(temp_storage):
     """Test storage initialization creates necessary files."""
-    assert temp_storage.activities_file.exists()
-    assert temp_storage.tasks_file.exists()
+    assert temp_storage.entries_file.exists()
 
 
-def test_add_activity(temp_storage):
-    """Test adding an activity."""
-    activity = temp_storage.add_activity(
-        description="Test activity",
+def test_add_entry(temp_storage):
+    """Test adding an entry."""
+    entry = temp_storage.add_entry(
+        title="Test entry",
         tags=["test", "work"]
     )
     
-    assert activity.description == "Test activity"
-    assert len(activity.tags) == 2
-    assert activity.id is not None
+    assert entry.title == "Test entry"
+    assert len(entry.tags) == 2
+    assert entry.id is not None
 
 
-def test_get_all_activities(temp_storage):
-    """Test retrieving all activities."""
-    temp_storage.add_activity("Activity 1")
-    temp_storage.add_activity("Activity 2")
+def test_get_all_entries(temp_storage):
+    """Test retrieving all entries."""
+    temp_storage.add_entry("Entry 1")
+    temp_storage.add_entry("Entry 2")
     
-    activities = temp_storage.get_all_activities()
-    assert len(activities) == 2
+    entries = temp_storage.get_all_entries_data()
+    assert len(entries) == 2
 
 
-def test_get_activities_with_tags(temp_storage):
-    """Test filtering activities by tags."""
-    temp_storage.add_activity("Work task", tags=["work"])
-    temp_storage.add_activity("Personal task", tags=["personal"])
-    temp_storage.add_activity("Work meeting", tags=["work", "meeting"])
+def test_get_entries_with_tags(temp_storage):
+    """Test filtering entries by tags."""
+    temp_storage.add_entry("Work task", tags=["work"])
+    temp_storage.add_entry("Personal task", tags=["personal"])
+    temp_storage.add_entry("Work meeting", tags=["work", "meeting"])
     
-    work_activities = temp_storage.get_activities(tags=["work"])
-    assert len(work_activities) == 2
+    work_entries = temp_storage.get_entries(tags=["work"])
+    assert len(work_entries) == 2
 
 
-def test_create_task(temp_storage):
-    """Test creating a task."""
-    task = temp_storage.create_task(
+def test_create_active_entry(temp_storage):
+    """Test creating an active entry (task)."""
+    entry = temp_storage.add_entry(
         title="Test task",
         description="Test description",
+        status="active",
         tags=["test"]
     )
     
-    assert task.title == "Test task"
-    assert task.description == "Test description"
-    assert task.status == "active"
+    assert entry.title == "Test task"
+    assert entry.description == "Test description"
+    assert entry.status == "active"
 
 
-def test_get_tasks(temp_storage):
-    """Test retrieving tasks."""
-    temp_storage.create_task("Task 1")
-    temp_storage.create_task("Task 2")
+def test_get_entries_by_status(temp_storage):
+    """Test filtering entries by status."""
+    temp_storage.add_entry("Active task", status="active")
+    temp_storage.add_entry("Completed task", status="done")
     
-    tasks = temp_storage.get_tasks()
-    assert len(tasks) == 2
+    active_entries = temp_storage.get_entries(status="active")
+    completed_entries = temp_storage.get_entries(status="done")
+    
+    assert len(active_entries) == 1
+    assert len(completed_entries) == 1
 
 
-def test_get_tasks_by_status(temp_storage):
-    """Test filtering tasks by status."""
-    task1 = temp_storage.create_task("Active task")
-    task2 = temp_storage.create_task("To be completed")
+def test_add_progress(temp_storage):
+    """Test adding progress to an entry."""
+    entry = temp_storage.add_entry("Test task", status="active")
     
-    temp_storage.complete_task(task2.id)
-    
-    active_tasks = temp_storage.get_tasks(status="active")
-    completed_tasks = temp_storage.get_tasks(status="completed")
-    
-    assert len(active_tasks) == 1
-    assert len(completed_tasks) == 1
-
-
-def test_add_task_progress(temp_storage):
-    """Test adding progress to a task."""
-    task = temp_storage.create_task("Test task")
-    
-    updated_task = temp_storage.add_task_progress(
-        task.id,
+    updated_entry = temp_storage.add_progress(
+        entry.id,
         50.0,
         "Halfway done"
     )
     
-    assert updated_task is not None
-    assert updated_task.current_progress == 50.0
-    assert len(updated_task.progress_logs) == 1
+    assert updated_entry is not None
+    assert updated_entry.current_progress == 50.0
+    assert len(updated_entry.progress_logs) == 1
 
 
-def test_complete_task(temp_storage):
-    """Test completing a task."""
-    task = temp_storage.create_task("Test task")
-    temp_storage.add_task_progress(task.id, 50.0)
+def test_complete_entry(temp_storage):
+    """Test completing an entry."""
+    entry = temp_storage.add_entry("Test task", status="active")
+    temp_storage.add_progress(entry.id, 50.0)
     
-    completed_task = temp_storage.complete_task(task.id)
+    completed_entry = temp_storage.complete_entry(entry.id)
     
-    assert completed_task.status == "completed"
-    assert completed_task.current_progress == 100.0
+    assert completed_entry.status == "done"
+    assert completed_entry.current_progress == 100.0
 
 
-def test_cancel_task(temp_storage):
-    """Test cancelling a task."""
-    task = temp_storage.create_task("Test task")
+def test_cancel_entry(temp_storage):
+    """Test cancelling an entry."""
+    entry = temp_storage.add_entry("Test task", status="active")
     
-    cancelled_task = temp_storage.cancel_task(task.id)
+    cancelled_entry = temp_storage.cancel_entry(entry.id)
     
-    assert cancelled_task.status == "cancelled"
+    assert cancelled_entry.status == "cancelled"
 
 
-def test_update_task(temp_storage):
-    """Test updating a task."""
-    task = temp_storage.create_task("Test task")
-    task.description = "Updated description"
+def test_update_entry(temp_storage):
+    """Test updating an entry."""
+    entry = temp_storage.add_entry("Test task")
+    entry.description = "Updated description"
     
-    temp_storage.update_task(task)
+    temp_storage.update_entry(entry)
     
-    retrieved_task = temp_storage.get_task(task.id)
-    assert retrieved_task.description == "Updated description"
+    retrieved_entry = temp_storage.get_entry(entry.id)
+    assert retrieved_entry.description == "Updated description"

@@ -5,7 +5,6 @@ Data models for activities, tasks, and progress logs.
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, field, asdict
-import json
 
 
 @dataclass

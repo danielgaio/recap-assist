@@ -25,10 +25,8 @@ class Storage:
         self.data_dir.mkdir(parents=True, exist_ok=True)
         
         self.db_file = self.data_dir / "recap.db"
-        self.entries_json_file = self.data_dir / "entries.json"
         
         self._init_db()
-        self._migrate_from_json()
     
     def _get_connection(self):
         """Get a database connection."""
@@ -66,62 +64,6 @@ class Storage:
         
         conn.commit()
         conn.close()
-    
-    def _migrate_from_json(self) -> None:
-        """Migrate data from JSON file if it exists and DB is empty."""
-        if not self.entries_json_file.exists():
-            return
-            
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        
-        # Check if DB is empty
-        cursor.execute("SELECT COUNT(*) FROM entries")
-        if cursor.fetchone()[0] > 0:
-            conn.close()
-            return
-            
-        # Read JSON data
-        try:
-            with open(self.entries_json_file, 'r') as f:
-                entries_data = json.load(f)
-                
-            for entry_data in entries_data:
-                # Insert entry
-                cursor.execute("""
-                    INSERT INTO entries (id, title, description, timestamp, status, metadata)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (
-                    entry_data['id'],
-                    entry_data['title'],
-                    entry_data.get('description'),
-                    entry_data['timestamp'],
-                    entry_data['status'],
-                    json.dumps(entry_data.get('metadata', {}))
-                ))
-                
-                # Insert progress logs
-                for log in entry_data.get('progress_logs', []):
-                    cursor.execute("""
-                        INSERT INTO progress_logs (entry_id, timestamp, percentage, note)
-                        VALUES (?, ?, ?, ?)
-                    """, (
-                        entry_data['id'],
-                        log['timestamp'],
-                        log['percentage'],
-                        log.get('note')
-                    ))
-            
-            conn.commit()
-            print(f"Migrated {len(entries_data)} entries from JSON to SQLite.")
-            
-            # Rename JSON file to backup
-            self.entries_json_file.rename(self.entries_json_file.with_suffix('.json.bak'))
-            
-        except Exception as e:
-            print(f"Error migrating data: {e}")
-        finally:
-            conn.close()
     
     # Entry methods
     

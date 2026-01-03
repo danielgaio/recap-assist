@@ -79,12 +79,12 @@ Supported time filter options:
 The project follows a clean, extensible architecture:
 
 - **Models** (`models.py`): Data structures for unified Entries and Progress Logs
-- **Storage** (`storage.py`): Local JSON-based persistence layer
+- **Storage** (`storage.py`): Local SQLite-based persistence layer
 - **Utils** (`utils.py`): Time-based query utilities
 - **CLI** (`cli.py`): Command-line interface using Click
 
-All data is stored locally in JSON files at `~/.recap/`:
-- `entries.json`: All activity and task records
+All data is stored locally in a SQLite database at `~/.recap/`:
+- `recap.db`: All activity and task records
 
 ## Examples
 

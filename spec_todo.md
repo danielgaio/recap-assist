@@ -11,10 +11,6 @@ This document tracks the simplified MVP specification and implementation status.
   - Story: As a system, I store data in a local SQLite file for reliability.
   - Acceptance: `recap.db` created in `~/.recap/` with `entries` and `progress_logs` tables.
   - Test: `tests/test_storage.py::test_storage_initialization`
-- [x] **JSON Migration**
-  - Story: As a user, my existing JSON data is preserved when upgrading.
-  - Acceptance: `_migrate_from_json` runs on init, imports data, renames old file to `.bak`.
-  - Test: `tests/test_storage.py` (implicit in verification script)
 
 ### Domain Model
 - [x] **Unified Entry Model**

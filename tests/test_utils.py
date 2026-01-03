@@ -70,14 +70,14 @@ def test_parse_time_filter_month():
     """Test parsing month filter."""
     start, end = parse_time_filter("last-month")
     delta = end - start
-    assert delta.days >= 29 and delta.days <= 31
+    assert delta.days == 30
 
 
 def test_parse_time_filter_quarter():
     """Test parsing quarter filter."""
     start, end = parse_time_filter("last-quarter")
     delta = end - start
-    assert delta.days >= 89 and delta.days <= 91
+    assert delta.days == 90
 
 
 def test_parse_time_filter_invalid():

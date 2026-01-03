@@ -1,106 +1,86 @@
-# Local Activity & Progress Agent — Specification TODO
+# Local Activity & Progress Agent — Specification
 
-This document tracks what the specification is and witch parts are implemented.
-
----
-
-## Core Principles
-- [ ] Offline-first, fully local execution
-- [ ] Single-user system
-- [ ] Historical accuracy (append-only by default)
-- [ ] Modular, extensible architecture (AI-ready)
+This document tracks the simplified MVP specification and implementation status.
 
 ---
 
-## Interface (TUI)
-- [ ] Text-based User Interface (TUI) as main interface
-- [ ] Keyboard navigation (no command-heavy CLI)
-- [ ] Panels for activities, tasks, and progress
-- [ ] Forms for creating/editing records
-- [ ] Timeline-style views
+## 1. Minimal MVP (Deliver First) 🎯
+
+### Storage Layer
+- [x] **SQLite Database**
+  - Story: As a system, I store data in a local SQLite file for reliability.
+  - Acceptance: `recap.db` created in `~/.recap/` with `entries` and `progress_logs` tables.
+  - Test: `tests/test_storage.py::test_storage_initialization`
+- [x] **JSON Migration**
+  - Story: As a user, my existing JSON data is preserved when upgrading.
+  - Acceptance: `_migrate_from_json` runs on init, imports data, renames old file to `.bak`.
+  - Test: `tests/test_storage.py` (implicit in verification script)
+
+### Domain Model
+- [x] **Unified Entry Model**
+  - Story: As a developer, I use a single model for both activities and tasks.
+  - Acceptance: `Entry` class supports `id`, `title`, `status`, `progress_logs`.
+  - Test: `tests/test_models.py`
+
+### Core CLI Commands
+- [x] **Log Activity**
+  - Story: As a user, I can log a completed activity.
+  - Acceptance: `recap log "Title"` creates a `done` entry.
+  - CLI: `recap log <title>`
+- [x] **Create Task**
+  - Story: As a user, I can create a task to track later.
+  - Acceptance: `recap todo "Title"` creates an `active` entry.
+  - CLI: `recap todo <title>`
+- [x] **List Entries**
+  - Story: As a user, I can see my entries filtered by status or time.
+  - Acceptance: `recap list` shows entries; supports `--status` and `--filter`.
+  - CLI: `recap list [--status] [--filter]`
+- [x] **Update Progress**
+  - Story: As a user, I can update progress on a task.
+  - Acceptance: `recap progress <id> <pct>` adds a log entry and updates current progress.
+  - CLI: `recap progress <id> <pct>`
+- [x] **Complete Entry**
+  - Story: As a user, I can mark a task as done.
+  - Acceptance: `recap complete <id>` sets status to `done` and progress to 100%.
+  - CLI: `recap complete <id>`
+- [x] **Cancel Entry**
+  - Story: As a user, I can cancel a task I won't finish.
+  - Acceptance: `recap cancel <id>` sets status to `cancelled`.
+  - CLI: `recap cancel <id>`
+- [x] **Show Details**
+  - Story: As a user, I can see the full history of an entry.
+  - Acceptance: `recap show <id>` displays metadata and progress timeline.
+  - CLI: `recap show <id>`
+
+### Time Filters
+- [x] **Date Range Logic**
+  - Story: As a user, I can filter lists by common time ranges.
+  - Acceptance: `this-week`, `last-week`, `this-month` correctly calculate ranges.
+  - Test: `tests/test_utils.py`
 
 ---
 
-## Activity Logging
-- [ ] Create activity
-  - [ ] Timestamp (default: now)
-  - [ ] Text description
-  - [ ] Optional task association
-- [ ] Edit activity (configurable)
-- [ ] Delete activity (configurable)
-- [ ] Store activities locally (SQLite or equivalent)
+## 2. Backlog / Nice-to-Have ⏳
 
----
+### Enhanced CLI / TUI
+- [ ] **Interactive TUI**
+  - Story: As a user, I can navigate my data without memorizing commands.
+  - Acceptance: Textual-based UI with list/detail views.
+- [ ] **Edit Command**
+  - Story: As a user, I can fix typos in titles or descriptions.
+  - Acceptance: `recap edit <id>` allows modifying fields.
 
-## Time-Based Queries
-- [ ] Query activities by predefined intervals
-  - [ ] Last week
-  - [ ] Last month
-  - [ ] Last quarter
-- [ ] Custom date range queries
-- [ ] Aggregated summaries
-  - [ ] Activity count
-  - [ ] Grouping by tasks
+### Advanced Features
+- [ ] **Visualizations**
+  - Story: As a user, I can see my progress over time visually.
+  - Acceptance: ASCII charts or export to plotting tools.
+- [ ] **Stagnation Detection**
+  - Story: As a user, I am alerted to tasks that haven't moved in X days.
+- [ ] **AI Summarization**
+  - Story: As a user, I can get a summary of my week using a local LLM.
 
----
-
-## Tasks (Actions)
-- [ ] Create task
-  - [ ] Title
-  - [ ] Description
-  - [ ] Start date
-  - [ ] Optional target date
-  - [ ] Status (planned / in progress / paused / completed)
-- [ ] Edit task
-- [ ] Associate activities with tasks
-
----
-
-## Progress Tracking
-- [ ] Create progress log entry
-  - [ ] Date
-  - [ ] Completion percentage (0–100)
-  - [ ] Activity description
-  - [ ] Optional notes
-- [ ] Append-only progress history
-- [ ] Prevent regressions by default (configurable)
-
----
-
-## Progress Analysis & Visualization
-- [ ] Task progress timeline
-- [ ] Completion percentage over time (time series)
-- [ ] Export data for plotting
-- [ ] Detect stagnation periods (future)
-
----
-
-## Persistence Layer
-- [ ] Local database (SQLite)
-- [ ] Clear schema for:
-  - [ ] Activities
-  - [ ] Tasks
-  - [ ] Progress logs
-
----
-
-## Architecture
-- [ ] Domain layer (business logic)
-- [ ] Persistence layer
-- [ ] TUI interface layer
-- [ ] Clear separation of concerns
-
----
-
-## AI / Agent Readiness (Future)
-- [ ] Activity summarization hooks
-- [ ] Pattern detection hooks
-- [ ] Productivity insights hooks
-
----
-
-## Explicit Non-Goals (for now)
-- [ ] Multi-user support
-- [ ] Cloud sync
-- [ ] Real-time collaboration
-- [ ] Heavy graphical UI frameworks
+### Explicit Non-Goals
+- Multi-user support
+- Cloud sync
+- Real-time collaboration
+- Heavy graphical UI frameworks

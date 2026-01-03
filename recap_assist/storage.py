@@ -1,8 +1,9 @@
 """
 Local storage layer for unified entries.
-Uses JSON files for offline-first, local storage.
+Uses SQLite for offline-first, local storage.
 """
 
+import sqlite3
 import json
 import os
 from pathlib import Path
@@ -13,7 +14,7 @@ import uuid
 
 
 class Storage:
-    """Manages local storage of entries."""
+    """Manages local storage of entries using SQLite."""
     
     def __init__(self, data_dir: Optional[str] = None):
         """Initialize storage with a data directory."""
@@ -23,25 +24,104 @@ class Storage:
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)
         
-        self.entries_file = self.data_dir / "entries.json"
+        self.db_file = self.data_dir / "recap.db"
+        self.entries_json_file = self.data_dir / "entries.json"
         
-        # Initialize file if it doesn't exist
-        self._ensure_files_exist()
+        self._init_db()
+        self._migrate_from_json()
     
-    def _ensure_files_exist(self) -> None:
-        """Ensure storage files exist."""
-        if not self.entries_file.exists():
-            self._write_json(self.entries_file, [])
+    def _get_connection(self):
+        """Get a database connection."""
+        conn = sqlite3.connect(self.db_file)
+        conn.row_factory = sqlite3.Row
+        return conn
     
-    def _read_json(self, filepath: Path) -> Any:
-        """Read and parse JSON file."""
-        with open(filepath, 'r') as f:
-            return json.load(f)
+    def _init_db(self) -> None:
+        """Initialize database schema."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        # Create entries table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS entries (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                description TEXT,
+                timestamp TEXT NOT NULL,
+                status TEXT NOT NULL,
+                metadata TEXT
+            )
+        """)
+        
+        # Create progress_logs table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS progress_logs (
+                entry_id TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                percentage REAL NOT NULL,
+                note TEXT,
+                FOREIGN KEY (entry_id) REFERENCES entries (id)
+            )
+        """)
+        
+        conn.commit()
+        conn.close()
     
-    def _write_json(self, filepath: Path, data: Any) -> None:
-        """Write data to JSON file."""
-        with open(filepath, 'w') as f:
-            json.dump(data, f, indent=2)
+    def _migrate_from_json(self) -> None:
+        """Migrate data from JSON file if it exists and DB is empty."""
+        if not self.entries_json_file.exists():
+            return
+            
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        # Check if DB is empty
+        cursor.execute("SELECT COUNT(*) FROM entries")
+        if cursor.fetchone()[0] > 0:
+            conn.close()
+            return
+            
+        # Read JSON data
+        try:
+            with open(self.entries_json_file, 'r') as f:
+                entries_data = json.load(f)
+                
+            for entry_data in entries_data:
+                # Insert entry
+                cursor.execute("""
+                    INSERT INTO entries (id, title, description, timestamp, status, metadata)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (
+                    entry_data['id'],
+                    entry_data['title'],
+                    entry_data.get('description'),
+                    entry_data['timestamp'],
+                    entry_data['status'],
+                    json.dumps(entry_data.get('metadata', {}))
+                ))
+                
+                # Insert progress logs
+                for log in entry_data.get('progress_logs', []):
+                    cursor.execute("""
+                        INSERT INTO progress_logs (entry_id, timestamp, percentage, note)
+                        VALUES (?, ?, ?, ?)
+                    """, (
+                        entry_data['id'],
+                        log['timestamp'],
+                        log['percentage'],
+                        log.get('note')
+                    ))
+            
+            conn.commit()
+            print(f"Migrated {len(entries_data)} entries from JSON to SQLite.")
+            
+            # Rename JSON file to backup
+            self.entries_json_file.rename(self.entries_json_file.with_suffix('.json.bak'))
+            
+        except Exception as e:
+            print(f"Error migrating data: {e}")
+        finally:
+            conn.close()
     
     # Entry methods
     
@@ -58,84 +138,190 @@ class Storage:
             metadata=metadata or {}
         )
         
-        entries = self.get_all_entries_data()
-        entries.append(entry.to_dict())
-        self._write_json(self.entries_file, entries)
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            INSERT INTO entries (id, title, description, timestamp, status, metadata)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            entry.id,
+            entry.title,
+            entry.description,
+            entry.timestamp,
+            entry.status,
+            json.dumps(entry.metadata)
+        ))
+        
+        conn.commit()
+        conn.close()
         
         return entry
     
-    def get_all_entries_data(self) -> List[Dict[str, Any]]:
-        """Get all entries as dictionaries."""
-        return self._read_json(self.entries_file)
-    
+    def _row_to_entry(self, row: sqlite3.Row, logs: List[sqlite3.Row]) -> Entry:
+        """Convert DB rows to Entry object."""
+        entry = Entry(
+            id=row['id'],
+            title=row['title'],
+            description=row['description'],
+            timestamp=row['timestamp'],
+            status=row['status'],
+            metadata=json.loads(row['metadata']) if row['metadata'] else {}
+        )
+        
+        entry.progress_logs = [
+            ProgressLog(
+                timestamp=log['timestamp'],
+                percentage=log['percentage'],
+                note=log['note']
+            )
+            for log in logs
+        ]
+        
+        return entry
+
     def get_entries(self, start_date: Optional[datetime] = None,
                    end_date: Optional[datetime] = None,
                    status: Optional[str] = None) -> List[Entry]:
         """Get entries with optional filtering."""
-        entries_data = self.get_all_entries_data()
-        entries = [Entry.from_dict(data) for data in entries_data]
+        conn = self._get_connection()
+        cursor = conn.cursor()
         
-        # Filter by date range
+        query = "SELECT * FROM entries WHERE 1=1"
+        params = []
+        
         if start_date:
-            entries = [e for e in entries 
-                      if datetime.fromisoformat(e.timestamp) >= start_date]
+            query += " AND timestamp >= ?"
+            params.append(start_date.isoformat())
         if end_date:
-            entries = [e for e in entries 
-                      if datetime.fromisoformat(e.timestamp) <= end_date]
-        
-        # Filter by status
+            query += " AND timestamp <= ?"
+            params.append(end_date.isoformat())
         if status:
-            entries = [e for e in entries if e.status == status]
+            query += " AND status = ?"
+            params.append(status)
+            
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
         
+        entries = []
+        for row in rows:
+            # Fetch logs for each entry
+            cursor.execute("SELECT * FROM progress_logs WHERE entry_id = ? ORDER BY timestamp", (row['id'],))
+            log_rows = cursor.fetchall()
+            entries.append(self._row_to_entry(row, log_rows))
+            
+        conn.close()
         return entries
     
     def get_entry(self, entry_id: str) -> Optional[Entry]:
         """Get an entry by ID."""
-        entries = self.get_entries()
-        for entry in entries:
-            if entry.id == entry_id:
-                return entry
-        return None
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT * FROM entries WHERE id = ?", (entry_id,))
+        row = cursor.fetchone()
+        
+        if not row:
+            conn.close()
+            return None
+            
+        cursor.execute("SELECT * FROM progress_logs WHERE entry_id = ? ORDER BY timestamp", (entry_id,))
+        log_rows = cursor.fetchall()
+        
+        conn.close()
+        return self._row_to_entry(row, log_rows)
     
     def update_entry(self, entry: Entry) -> None:
-        """Update an entry."""
-        entries_data = self.get_all_entries_data()
+        """Update an entry's main fields."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
         
-        # Find and replace the entry
-        for i, entry_data in enumerate(entries_data):
-            if entry_data['id'] == entry.id:
-                entries_data[i] = entry.to_dict()
-                break
+        cursor.execute("""
+            UPDATE entries 
+            SET title = ?, description = ?, status = ?, metadata = ?
+            WHERE id = ?
+        """, (
+            entry.title,
+            entry.description,
+            entry.status,
+            json.dumps(entry.metadata),
+            entry.id
+        ))
         
-        self._write_json(self.entries_file, entries_data)
+        conn.commit()
+        conn.close()
     
     def add_progress(self, entry_id: str, percentage: float,
                     note: Optional[str] = None) -> Optional[Entry]:
         """Add progress to an entry."""
-        entry = self.get_entry(entry_id)
-        if entry:
-            entry.add_progress(percentage, note)
-            self.update_entry(entry)
-            return entry
-        return None
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        # Check if entry exists
+        cursor.execute("SELECT id FROM entries WHERE id = ?", (entry_id,))
+        if not cursor.fetchone():
+            conn.close()
+            return None
+            
+        timestamp = datetime.utcnow().isoformat()
+        
+        cursor.execute("""
+            INSERT INTO progress_logs (entry_id, timestamp, percentage, note)
+            VALUES (?, ?, ?, ?)
+        """, (
+            entry_id,
+            timestamp,
+            percentage,
+            note
+        ))
+        
+        conn.commit()
+        conn.close()
+        
+        return self.get_entry(entry_id)
     
     def complete_entry(self, entry_id: str) -> Optional[Entry]:
         """Mark an entry as completed."""
         entry = self.get_entry(entry_id)
-        if entry:
-            entry.status = "done"
-            # Add 100% progress if not already there
-            if entry.current_progress < 100:
-                entry.add_progress(100.0, "Completed")
-            self.update_entry(entry)
-            return entry
-        return None
+        if not entry:
+            return None
+            
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        # Update status
+        cursor.execute("UPDATE entries SET status = 'done' WHERE id = ?", (entry_id,))
+        
+        # Add 100% progress if needed
+        if entry.current_progress < 100:
+            timestamp = datetime.utcnow().isoformat()
+            cursor.execute("""
+                INSERT INTO progress_logs (entry_id, timestamp, percentage, note)
+                VALUES (?, ?, ?, ?)
+            """, (
+                entry_id,
+                timestamp,
+                100.0,
+                "Completed"
+            ))
+            
+        conn.commit()
+        conn.close()
+        
+        return self.get_entry(entry_id)
     
     def cancel_entry(self, entry_id: str) -> Optional[Entry]:
         """Mark an entry as cancelled."""
-        entry = self.get_entry(entry_id)
-        if entry:
-            entry.status = "cancelled"
-            self.update_entry(entry)
-            return entry
-        return None
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("UPDATE entries SET status = 'cancelled' WHERE id = ?", (entry_id,))
+        
+        if cursor.rowcount == 0:
+            conn.close()
+            return None
+            
+        conn.commit()
+        conn.close()
+        
+        return self.get_entry(entry_id)

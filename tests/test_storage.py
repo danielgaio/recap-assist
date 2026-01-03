@@ -19,7 +19,7 @@ def temp_storage():
 
 def test_storage_initialization(temp_storage):
     """Test storage initialization creates necessary files."""
-    assert temp_storage.entries_file.exists()
+    assert temp_storage.db_file.exists()
 
 
 def test_add_entry(temp_storage):
@@ -37,7 +37,7 @@ def test_get_all_entries(temp_storage):
     temp_storage.add_entry("Entry 1")
     temp_storage.add_entry("Entry 2")
     
-    entries = temp_storage.get_all_entries_data()
+    entries = temp_storage.get_entries()
     assert len(entries) == 2
 
 

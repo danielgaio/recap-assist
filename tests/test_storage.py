@@ -25,12 +25,10 @@ def test_storage_initialization(temp_storage):
 def test_add_entry(temp_storage):
     """Test adding an entry."""
     entry = temp_storage.add_entry(
-        title="Test entry",
-        tags=["test", "work"]
+        title="Test entry"
     )
     
     assert entry.title == "Test entry"
-    assert len(entry.tags) == 2
     assert entry.id is not None
 
 
@@ -43,23 +41,12 @@ def test_get_all_entries(temp_storage):
     assert len(entries) == 2
 
 
-def test_get_entries_with_tags(temp_storage):
-    """Test filtering entries by tags."""
-    temp_storage.add_entry("Work task", tags=["work"])
-    temp_storage.add_entry("Personal task", tags=["personal"])
-    temp_storage.add_entry("Work meeting", tags=["work", "meeting"])
-    
-    work_entries = temp_storage.get_entries(tags=["work"])
-    assert len(work_entries) == 2
-
-
 def test_create_active_entry(temp_storage):
     """Test creating an active entry (task)."""
     entry = temp_storage.add_entry(
         title="Test task",
         description="Test description",
-        status="active",
-        tags=["test"]
+        status="active"
     )
     
     assert entry.title == "Test task"

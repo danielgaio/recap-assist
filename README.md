@@ -34,7 +34,7 @@ Log things you've already done:
 
 ```bash
 # Log a completed activity
-recap log "Finished project documentation" --tags work --tags documentation
+recap log "Finished project documentation"
 ```
 
 ### Managing Tasks
@@ -43,7 +43,7 @@ Create and manage active tasks:
 
 ```bash
 # Create a new active task
-recap todo "Write API documentation" --description "Document all REST endpoints" --tags work
+recap todo "Write API documentation" --description "Document all REST endpoints"
 
 # List all entries (tasks and activities)
 recap list
@@ -92,8 +92,8 @@ All data is stored locally in JSON files at `~/.recap/`:
 
 ```bash
 # Morning: Log what you did yesterday
-recap log "Fixed bug in user authentication" --tags work --tags bugfix
-recap log "Team standup meeting" --tags meeting
+recap log "Fixed bug in user authentication"
+recap log "Team standup meeting"
 
 # During the day: Update task progress
 recap progress abc-123 50 --note "Halfway through implementation"

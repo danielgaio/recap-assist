@@ -24,15 +24,13 @@ def main():
 @main.command(name="log")
 @click.argument("title")
 @click.option("--description", "-d", help="Optional description")
-@click.option("--tags", "-t", multiple=True, help="Tags for the entry")
-def log(title: str, description: Optional[str], tags: tuple):
+def log(title: str, description: Optional[str]):
     """Log a completed activity."""
     storage = Storage()
     entry = storage.add_entry(
         title=title,
         description=description,
-        status="done",
-        tags=list(tags)
+        status="done"
     )
     click.echo(f"✓ Logged: {entry.title}")
     click.echo(f"  ID: {entry.id}")
@@ -42,15 +40,13 @@ def log(title: str, description: Optional[str], tags: tuple):
 @main.command(name="todo")
 @click.argument("title")
 @click.option("--description", "-d", help="Optional description")
-@click.option("--tags", "-t", multiple=True, help="Tags for the entry")
-def todo(title: str, description: Optional[str], tags: tuple):
+def todo(title: str, description: Optional[str]):
     """Create a new active task."""
     storage = Storage()
     entry = storage.add_entry(
         title=title,
         description=description,
-        status="active",
-        tags=list(tags)
+        status="active"
     )
     click.echo(f"✓ Added to TODO: {entry.title}")
     click.echo(f"  ID: {entry.id}")
@@ -60,9 +56,8 @@ def todo(title: str, description: Optional[str], tags: tuple):
 @main.command(name="list")
 @click.option("--filter", "-f", help="Time filter (last-week, last-month, etc.)")
 @click.option("--status", "-s", type=click.Choice(["active", "done", "cancelled"]), help="Filter by status")
-@click.option("--tags", "-t", multiple=True, help="Filter by tags")
 @click.option("--limit", "-n", type=int, help="Limit number of results")
-def list_entries(filter: Optional[str], status: Optional[str], tags: tuple, limit: Optional[int]):
+def list_entries(filter: Optional[str], status: Optional[str], limit: Optional[int]):
     """List entries with optional filtering."""
     storage = Storage()
     
@@ -80,8 +75,7 @@ def list_entries(filter: Optional[str], status: Optional[str], tags: tuple, limi
     entries = storage.get_entries(
         start_date=start_date,
         end_date=end_date,
-        status=status,
-        tags=list(tags) if tags else None
+        status=status
     )
     
     # Sort by timestamp (newest first)
@@ -103,8 +97,6 @@ def list_entries(filter: Optional[str], status: Optional[str], tags: tuple, limi
         click.echo(f"  ID: {entry.id}")
         click.echo(f"  Status: {entry.status}")
         click.echo(f"  Time: {format_datetime(datetime.fromisoformat(entry.timestamp))}")
-        if entry.tags:
-            click.echo(f"  Tags: {', '.join(entry.tags)}")
         click.echo()
 
 
@@ -180,9 +172,6 @@ def show(entry_id: str):
     
     if entry.description:
         click.echo(f"\nDescription: {entry.description}")
-    
-    if entry.tags:
-        click.echo(f"Tags: {', '.join(entry.tags)}")
     
     # Display progress timeline
     if entry.progress_logs:

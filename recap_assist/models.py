@@ -33,7 +33,6 @@ class Entry:
     description: Optional[str] = None
     status: str = "done"  # done, active, cancelled
     progress_logs: List[ProgressLog] = field(default_factory=list)
-    tags: List[str] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
     
     @property

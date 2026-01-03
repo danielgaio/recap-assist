@@ -13,7 +13,6 @@ def test_entry_creation():
         description="Test description",
         timestamp=datetime.utcnow().isoformat(),
         status="active",
-        tags=["work", "test"],
         metadata={"key": "value"}
     )
     
@@ -21,7 +20,6 @@ def test_entry_creation():
     assert entry.title == "Test entry"
     assert entry.description == "Test description"
     assert entry.status == "active"
-    assert len(entry.tags) == 2
     assert entry.metadata["key"] == "value"
 
 
@@ -30,8 +28,7 @@ def test_entry_serialization():
     entry = Entry(
         id="test-1",
         title="Test entry",
-        timestamp=datetime.utcnow().isoformat(),
-        tags=["test"]
+        timestamp=datetime.utcnow().isoformat()
     )
     
     # Convert to dict and back
@@ -40,7 +37,6 @@ def test_entry_serialization():
     
     assert restored.id == entry.id
     assert restored.title == entry.title
-    assert restored.tags == entry.tags
 
 
 def test_progress_log_creation():

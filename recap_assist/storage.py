@@ -46,7 +46,7 @@ class Storage:
     # Entry methods
     
     def add_entry(self, title: str, description: Optional[str] = None,
-                 status: str = "done", tags: Optional[List[str]] = None,
+                 status: str = "done",
                  metadata: Optional[Dict[str, Any]] = None) -> Entry:
         """Add a new entry."""
         entry = Entry(
@@ -55,7 +55,6 @@ class Storage:
             description=description,
             timestamp=datetime.utcnow().isoformat(),
             status=status,
-            tags=tags or [],
             metadata=metadata or {}
         )
         
@@ -71,8 +70,7 @@ class Storage:
     
     def get_entries(self, start_date: Optional[datetime] = None,
                    end_date: Optional[datetime] = None,
-                   status: Optional[str] = None,
-                   tags: Optional[List[str]] = None) -> List[Entry]:
+                   status: Optional[str] = None) -> List[Entry]:
         """Get entries with optional filtering."""
         entries_data = self.get_all_entries_data()
         entries = [Entry.from_dict(data) for data in entries_data]
@@ -88,11 +86,6 @@ class Storage:
         # Filter by status
         if status:
             entries = [e for e in entries if e.status == status]
-        
-        # Filter by tags
-        if tags:
-            entries = [e for e in entries 
-                      if any(tag in e.tags for tag in tags)]
         
         return entries
     
